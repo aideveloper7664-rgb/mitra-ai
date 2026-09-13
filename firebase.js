@@ -2,18 +2,35 @@ import admin from 'firebase-admin'
 import dotenv from 'dotenv'
 dotenv.config()
 
+// ========== PRIVATE KEY FIX (Option 2) ==========
+function getPrivateKey() {
+    let key = process.env.FIREBASE_PRIVATE_KEY || ''
+    
+    // 1. Shuru aur aakhir ke quotes hatao (agar hain)
+    key = key.replace(/^"|"$/g, '')
+    
+    // 2. \n ko actual newline me badlo
+    key = key.replace(/\\n/g, '\n')
+    
+    // 3. Extra spaces hatao (shuru/aakhir se)
+    key = key.trim()
+    
+    return key
+}
+
 if (!admin.apps.length) {
     admin.initializeApp({
         credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
             clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+            privateKey: getPrivateKey()
         })
     })
 }
 
 const db = admin.firestore()
 
+// ========== CHAT MESSAGES ==========
 export async function saveMessage(userId, messageId, data) {
     try {
         await db.collection('chats').doc(userId)
