@@ -8,6 +8,9 @@ import pino from 'pino'
 import dotenv from 'dotenv'
 dotenv.config()
 
+// Panel (web server) import karo — Render ko port chahiye
+import './panel.js'
+
 import { getAIReply } from './ai.js'
 import { uploadToImgBB } from './imgbb.js'
 import {
@@ -83,28 +86,24 @@ async function startBot() {
         auth: state,
         logger,
         printQRInTerminal: false,
-        browser: ['Chrome', 'Chrome', '20.0.04'] // FIXED: custom label hata diya
+        browser: ['Chrome', 'Chrome', '20.0.04']
     })
 
-    // ========== PAIRING CODE REQUEST ==========
     let pairingRequested = false
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
 
-        // QR aane par pairing code maango (ek baar)
         if (qr && !pairingRequested && !sock.authState.creds.registered) {
             pairingRequested = true
             const phoneNumber = process.env.PHONE_NUMBER
 
             if (!phoneNumber) {
                 console.log('\n❌ PHONE_NUMBER env variable set nahi hai!')
-                console.log('📍 Render pe PHONE_NUMBER add karo (jaise: 9779812345678)\n')
                 qrcode.generate(qr, { small: true })
                 return
             }
 
-            // Thoda wait karo socket ready hone ke liye
             setTimeout(async () => {
                 try {
                     const code = await sock.requestPairingCode(phoneNumber)
@@ -141,7 +140,6 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
-    // ========== MESSAGE HANDLER ==========
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify') return
         const msg = messages[0]
@@ -156,10 +154,8 @@ async function startBot() {
 
         console.log(`📩 [${name}] ${processed.type}: ${processed.content}`)
 
-        // User save
         await saveUser(userId, { name, number: userId.split('@')[0] })
 
-        // Media ImgBB upload
         let mediaUrl = null
         if (processed.mediaBuffer) {
             const ext = processed.mediaType === 'image' ? 'jpg'
@@ -168,7 +164,6 @@ async function startBot() {
             mediaUrl = await uploadToImgBB(processed.mediaBuffer, `${whatsappId}.${ext}`)
         }
 
-        // Message save
         await saveMessage(userId, whatsappId, {
             whatsappId,
             type: processed.type,
@@ -181,23 +176,18 @@ async function startBot() {
             deletedAt: null
         })
 
-        // Bot disabled?
         if (!botEnabled) return
 
-        // AI reply
         const history = await getChatHistory(userId, 20)
         const reply = await getAIReply(userId, processed.content || '[media]', history)
 
-        // Typing indicator + delay
         try { await sock.sendPresenceUpdate('composing', userId) } catch {}
         await new Promise(r => setTimeout(r, humanDelay()))
 
-        // Send reply
         try {
             await sock.sendMessage(userId, { text: reply }, { quoted: msg })
             try { await sock.sendPresenceUpdate('paused', userId) } catch {}
 
-            // Save bot reply
             await saveMessage(userId, `bot_${Date.now()}`, {
                 type: 'text',
                 content: reply,
@@ -210,7 +200,6 @@ async function startBot() {
         } catch (err) { console.log('❌ Send:', err.message) }
     })
 
-    // ========== DELETED MESSAGE HANDLER ==========
     sock.ev.on('messages.update', async (updates) => {
         for (const u of updates) {
             if (u.update?.messageStubType === 0 || u.update?.message === null) {
