@@ -1,0 +1,27 @@
+{
+  "name": "mitra-ai",
+  "version": "1.0.0",
+  "description": "WhatsApp AI Agent with multi-provider key rotation",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "@hapi/boom": "^10.0.1",
+    "qrcode-terminal": "^0.12.0",
+    "pino": "^9.5.0",
+    "express": "^4.21.1",
+    "ejs": "^3.1.10",
+    "express-session": "^1.18.1",
+    "cookie-parser": "^1.4.7",
+    "firebase-admin": "^13.0.1",
+    "axios": "^1.7.9",
+    "form-data": "^4.0.1",
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

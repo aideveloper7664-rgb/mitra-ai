@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mitra AI - Panel</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Mitra AI Panel</h1>
+            <a href="/logout" class="logout">Logout</a>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" data-tab="dashboard">Dashboard</button>
+            <button class="tab" data-tab="ai-keys">AI Keys</button>
+            <button class="tab" data-tab="imgbb-keys">ImgBB Keys</button>
+            <button class="tab" data-tab="instructions">Instructions</button>
+            <button class="tab" data-tab="knowledge">Knowledge</button>
+            <button class="tab" data-tab="chats">Chats</button>
+        </nav>
+
+        <!-- Dashboard -->
+        <section id="dashboard" class="tab-content active">
+            <div class="card">
+                <h2>Bot Status</h2>
+                <div class="status-row">
+                    <span>Bot:</span>
+                    <span id="bot-status" class="status-badge">Loading...</span>
+                    <button id="toggle-bot" class="btn">Toggle</button>
+                </div>
+                <div class="stats">
+                    <div class="stat"><h3 id="ai-count">0</h3><p>AI Keys</p></div>
+                    <div class="stat"><h3 id="ai-active">0</h3><p>AI Active</p></div>
+                    <div class="stat"><h3 id="imgbb-count">0</h3><p>ImgBB Keys</p></div>
+                    <div class="stat"><h3 id="imgbb-active">0</h3><p>ImgBB Active</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Keys -->
+        <section id="ai-keys" class="tab-content">
+            <div class="card">
+                <h2>AI Keys</h2>
+                <div class="form-row">
+                    <select id="ai-provider">
+                        <option value="gemini">Gemini</option>
+                        <option value="groq">Groq</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="mistral">Mistral</option>
+                    </select>
+                    <input id="ai-label" placeholder="Label (jaise Gemini-1)">
+                    <input id="ai-key" placeholder="API Key">
+                    <input id="ai-model" placeholder="Model (optional)">
+                    <button onclick="addAIKey()" class="btn">Add</button>
+                </div>
+                <div id="ai-keys-list" class="list"></div>
+            </div>
+        </section>
+
+        <!-- ImgBB Keys -->
+        <section id="imgbb-keys" class="tab-content">
+            <div class="card">
+                <h2>ImgBB Keys</h2>
+                <div class="form-row">
+                    <input id="imgbb-label" placeholder="Label">
+                    <input id="imgbb-key" placeholder="API Key">
+                    <button onclick="addImgBBKey()" class="btn">Add</button>
+                </div>
+                <div id="imgbb-keys-list" class="list"></div>
+            </div>
+        </section>
+
+        <!-- Instructions -->
+        <section id="instructions" class="tab-content">
+            <div class="card">
+                <h2>Custom Instructions</h2>
+                <div class="form-row">
+                    <input id="instr-text" placeholder="Instruction likho..." style="flex:1">
+                    <button onclick="addInstruction()" class="btn">Add</button>
+                </div>
+                <div id="instructions-list" class="list"></div>
+            </div>
+        </section>
+
+        <!-- Knowledge -->
+        <section id="knowledge" class="tab-content">
+            <div class="card">
+                <h2>Knowledge Base</h2>
+                <div class="form-col">
+                    <label>Assistant Name <input id="k-assistantName"></label>
+                    <label>Sir Name <input id="k-sirName"></label>
+                    <label>Sir Intro <input id="k-sirIntro"></label>
+                    <label>YouTube <input id="k-youtube"></label>
+                    <label>Telegram <input id="k-telegram"></label>
+                    <label>Website <input id="k-website"></label>
+                    <label>App <input id="k-app"></label>
+                    <label>Busy Message <input id="k-busyMessage"></label>
+                    <label>Note <input id="k-note"></label>
+                    <button onclick="saveKnowledge()" class="btn">Save</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Chats -->
+        <section id="chats" class="tab-content">
+            <div class="card">
+                <h2>Users & Chats</h2>
+                <div id="users-list" class="list"></div>
+                <div id="user-messages" class="messages"></div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
