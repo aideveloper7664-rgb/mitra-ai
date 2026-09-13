@@ -21,8 +21,10 @@ let botEnabled = true
 
 // Settings refresh (har 30 sec)
 setInterval(async () => {
-    const s = await getSettings()
-    botEnabled = s.botEnabled !== false
+    try {
+        const s = await getSettings()
+        botEnabled = s.botEnabled !== false
+    } catch (e) {}
 }, 30000)
 
 // Human delay (2-8 sec)
@@ -61,9 +63,11 @@ async function processMessage(msg) {
         type = 'reaction'; content = m.reactionMessage.text || ''
     }
 
-    if (mediaType) {
+    if (mediaType && mediaType !== 'audio') {
         try {
-            mediaBuffer = await downloadMediaMessage(msg, 'buffer', {}, { logger, reuploadRequest: sock.updateMediaMessage })
+            mediaBuffer = await downloadMediaMessage(msg, 'buffer', {}, {
+                logger, reuploadRequest: sock.updateMediaMessage
+            })
         } catch (err) { console.log('❌ Media download:', err.message) }
     }
 
@@ -75,28 +79,64 @@ async function startBot() {
     const { version } = await fetchLatestBaileysVersion()
 
     sock = makeWASocket({
-        version, auth: state, logger,
+        version,
+        auth: state,
+        logger,
         printQRInTerminal: false,
         browser: ['Mitra AI', 'Chrome', '1.0.0']
     })
 
-    sock.ev.on('connection.update', (update) => {
+    // ========== PAIRING CODE REQUEST ==========
+    let pairingRequested = false
+
+    sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
-        if (qr) {
-            console.clear()
-            console.log('\n📱 QR scan karo:\n')
-            qrcode.generate(qr, { small: true })
-            console.log('\n📍 WhatsApp > Settings > Linked Devices > Link a Device\n')
+
+        // QR aane par pairing code maango (ek baar)
+        if (qr && !pairingRequested && !sock.authState.creds.registered) {
+            pairingRequested = true
+            const phoneNumber = process.env.PHONE_NUMBER
+
+            if (!phoneNumber) {
+                console.log('\n❌ PHONE_NUMBER env variable set nahi hai!')
+                console.log('📍 Render pe PHONE_NUMBER add karo (jaise: 919876543210)\n')
+                // Fallback: QR print karo
+                qrcode.generate(qr, { small: true })
+                return
+            }
+
+            // Thoda wait karo, phir pairing code maango
+            setTimeout(async () => {
+                try {
+                    const code = await sock.requestPairingCode(phoneNumber)
+                    console.log(`\n========================================`)
+                    console.log(`📱 PAIRING CODE: ${code}`)
+                    console.log(`========================================`)
+                    console.log(`\n📍 Phone me daalo:`)
+                    console.log(`   WhatsApp > Settings > Linked Devices`)
+                    console.log(`   > Link a Device > Link with phone number\n`)
+                } catch (err) {
+                    console.log('❌ Pairing code error:', err.message)
+                    // Fallback: QR print
+                    qrcode.generate(qr, { small: true })
+                }
+            }, 3000)
         }
+
         if (connection === 'open') {
-            console.clear()
-            console.log('✅ Mitra AI connected!')
+            console.log('\n✅ Mitra AI connected successfully!')
+            console.log('📩 Ab messages ka reply aayega...\n')
         }
+
         if (connection === 'close') {
             const code = new Boom(lastDisconnect?.error)?.output?.statusCode
+            console.log('❌ Disconnected. Code:', code)
             if (code !== DisconnectReason.loggedOut) {
                 console.log('🔄 Reconnecting...')
+                pairingRequested = false
                 startBot()
+            } else {
+                console.log('🚪 Logged out. auth_info delete karke dobara chalao.')
             }
         }
     })
@@ -123,17 +163,24 @@ async function startBot() {
 
         // Media ImgBB upload
         let mediaUrl = null
-        if (processed.mediaBuffer && processed.mediaType !== 'audio') {
+        if (processed.mediaBuffer) {
             const ext = processed.mediaType === 'image' ? 'jpg'
-                : processed.mediaType === 'video' ? 'mp4' : 'bin'
+                : processed.mediaType === 'video' ? 'mp4'
+                : processed.mediaType === 'sticker' ? 'webp' : 'bin'
             mediaUrl = await uploadToImgBB(processed.mediaBuffer, `${whatsappId}.${ext}`)
         }
 
         // Message save
         await saveMessage(userId, whatsappId, {
-            whatsappId, type: processed.type, content: processed.content,
-            mediaUrl, sender: 'user', senderName: name, timestamp: Date.now(),
-            deleted: false, deletedAt: null
+            whatsappId,
+            type: processed.type,
+            content: processed.content,
+            mediaUrl,
+            sender: 'user',
+            senderName: name,
+            timestamp: Date.now(),
+            deleted: false,
+            deletedAt: null
         })
 
         // Bot disabled?
@@ -147,15 +194,20 @@ async function startBot() {
         try { await sock.sendPresenceUpdate('composing', userId) } catch {}
         await new Promise(r => setTimeout(r, humanDelay()))
 
-        // Send
+        // Send reply
         try {
             await sock.sendMessage(userId, { text: reply }, { quoted: msg })
             try { await sock.sendPresenceUpdate('paused', userId) } catch {}
-            // Save reply
+
+            // Save bot reply
             await saveMessage(userId, `bot_${Date.now()}`, {
-                type: 'text', content: reply, sender: 'bot',
+                type: 'text',
+                content: reply,
+                sender: 'bot',
                 senderName: process.env.BOT_NAME || 'Mitra AI',
-                timestamp: Date.now(), deleted: false, deletedAt: null
+                timestamp: Date.now(),
+                deleted: false,
+                deletedAt: null
             })
         } catch (err) { console.log('❌ Send:', err.message) }
     })
