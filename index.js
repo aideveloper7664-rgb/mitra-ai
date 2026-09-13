@@ -83,7 +83,7 @@ async function startBot() {
         auth: state,
         logger,
         printQRInTerminal: false,
-        browser: ['Mitra AI', 'Chrome', '1.0.0']
+        browser: ['Chrome', 'Chrome', '20.0.04'] // FIXED: custom label hata diya
     })
 
     // ========== PAIRING CODE REQUEST ==========
@@ -99,13 +99,12 @@ async function startBot() {
 
             if (!phoneNumber) {
                 console.log('\n❌ PHONE_NUMBER env variable set nahi hai!')
-                console.log('📍 Render pe PHONE_NUMBER add karo (jaise: 919876543210)\n')
-                // Fallback: QR print karo
+                console.log('📍 Render pe PHONE_NUMBER add karo (jaise: 9779812345678)\n')
                 qrcode.generate(qr, { small: true })
                 return
             }
 
-            // Thoda wait karo, phir pairing code maango
+            // Thoda wait karo socket ready hone ke liye
             setTimeout(async () => {
                 try {
                     const code = await sock.requestPairingCode(phoneNumber)
@@ -117,7 +116,6 @@ async function startBot() {
                     console.log(`   > Link a Device > Link with phone number\n`)
                 } catch (err) {
                     console.log('❌ Pairing code error:', err.message)
-                    // Fallback: QR print
                     qrcode.generate(qr, { small: true })
                 }
             }, 3000)
