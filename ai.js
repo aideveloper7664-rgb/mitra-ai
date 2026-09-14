@@ -46,7 +46,7 @@ Rules:
 function getDefaultModel(provider) {
     return {
         gemini: 'gemini-1.5-flash',
-        groq: 'llama-3.1-8b-instant',     // Groq ka naya model
+        groq: 'llama-3.1-8b-instant',
         openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
         openai: 'gpt-4o-mini',
         mistral: 'mistral-small-latest'
@@ -113,7 +113,7 @@ export async function getAIReply(userId, userMessage, history = []) {
         try {
             console.log(`🔄 Trying ${key.provider}/${key.label}...`)
             const reply = await callProvider(key, messages, systemPrompt)
-            
+
             if (reply && reply.trim()) {
                 key.usageCount = (key.usageCount || 0) + 1
                 key.lastUsed = Date.now()
@@ -127,17 +127,15 @@ export async function getAIReply(userId, userMessage, history = []) {
             const status = err.response?.status
             const errMsg = err.response?.data?.error?.message || err.message
             console.log(`❌ ${key.provider}/${key.label} [${status}]:`, errMsg)
-            
-            // Rate limit ya quota exceeded → cooldown
+
             if (status === 429 || errMsg?.includes('quota') || errMsg?.includes('rate') || errMsg?.includes('limit')) {
-                setCooldown(key.id, 60 * 60 * 1000) // 1 ghanta
+                setCooldown(key.id, 60 * 60 * 1000)
                 console.log(`   ⏳ ${key.label} cooldown me 1 ghante ke liye`)
             } else if (status === 401 || status === 403) {
                 key.active = false
                 await saveAIKeys(keys)
                 console.log(`   🚫 ${key.label} disable ho gayi`)
             }
-            // Next key try karega
         }
     }
 
