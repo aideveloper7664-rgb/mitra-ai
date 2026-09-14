@@ -21,15 +21,19 @@ function loadTab(name) {
 
 // ========== STATUS ==========
 async function loadStatus() {
-    const res = await fetch('/api/status')
-    const d = await res.json()
-    const badge = document.getElementById('bot-status')
-    badge.textContent = d.botEnabled ? 'ON' : 'OFF'
-    badge.className = 'status-badge ' + (d.botEnabled ? 'on' : 'off')
-    document.getElementById('ai-count').textContent = d.aiKeysCount
-    document.getElementById('ai-active').textContent = d.aiKeysActive
-    document.getElementById('imgbb-count').textContent = d.imgbbKeysCount
-    document.getElementById('imgbb-active').textContent = d.imgbbKeysActive
+    try {
+        const res = await fetch('/api/status')
+        const d = await res.json()
+        const badge = document.getElementById('bot-status')
+        badge.textContent = d.botEnabled ? 'ON' : 'OFF'
+        badge.className = 'status-badge ' + (d.botEnabled ? 'on' : 'off')
+        document.getElementById('ai-count').textContent = d.aiKeysCount
+        document.getElementById('ai-active').textContent = d.aiKeysActive
+        document.getElementById('imgbb-count').textContent = d.imgbbKeysCount
+        document.getElementById('imgbb-active').textContent = d.imgbbKeysActive
+    } catch (err) {
+        console.error('loadStatus error:', err)
+    }
 }
 
 document.getElementById('toggle-bot')?.addEventListener('click', async () => {
@@ -42,15 +46,13 @@ async function loadWhatsAppStatus() {
     try {
         const res = await fetch('/api/whatsapp/status')
         const data = await res.json()
-
         const connectedDiv = document.getElementById('wa-connected')
         const notConnectedDiv = document.getElementById('wa-not-connected')
-
         if (data.connected) {
             connectedDiv.style.display = 'block'
             notConnectedDiv.style.display = 'none'
             document.getElementById('wa-connected-number').textContent =
-                data.phoneNumber ? `Number: +${data.phoneNumber}` : ''
+                data.phoneNumber ? 'Number: +' + data.phoneNumber : ''
         } else {
             connectedDiv.style.display = 'none'
             notConnectedDiv.style.display = 'block'
@@ -62,37 +64,29 @@ async function loadWhatsAppStatus() {
 
 async function showQR() {
     const container = document.getElementById('wa-qr-container')
-    container.innerHTML = '<p style="color:#94a3b8">⏳ QR load ho raha hai...</p>'
-
+    container.innerHTML = '<p style="color:#94a3b8">QR load ho raha hai...</p>'
     try {
         const res = await fetch('/api/whatsapp/qr')
         const data = await res.json()
-
         if (data.connected) {
-            container.innerHTML = '<p style="color:#6ee7b7">✅ Already connected!</p>'
+            container.innerHTML = '<p style="color:#6ee7b7">Already connected!</p>'
             loadWhatsAppStatus()
             return
         }
-
         if (!data.qr) {
-            container.innerHTML = '<p style="color:#f59e0b">⏳ QR ready nahi hai. 5 second baad phir try karo.</p>'
+            container.innerHTML = '<p style="color:#f59e0b">QR ready nahi hai. 5 second baad phir try karo.</p>'
             setTimeout(showQR, 5000)
             return
         }
-
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.qr)}`
-
-        container.innerHTML = `
-            <div class="wa-qr-box">
-                <img src="${qrImageUrl}" alt="QR Code" style="width:250px; height:250px;">
-                <p style="color:#64748b; font-size:12px; margin-top:8px;">
-                    WhatsApp → Linked Devices → Link a Device
-                </p>
-                <button onclick="showQR()" class="btn btn-sm" style="margin-top:8px;">🔄 Refresh QR</button>
-            </div>
-        `
+        const qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(data.qr)
+        let html = '<div class="wa-qr-box">'
+        html += '<img src="' + qrImageUrl + '" alt="QR Code" style="width:250px; height:250px;">'
+        html += '<p style="color:#64748b; font-size:12px; margin-top:8px;">WhatsApp - Linked Devices - Link a Device</p>'
+        html += '<button onclick="showQR()" class="btn btn-sm" style="margin-top:8px;">Refresh QR</button>'
+        html += '</div>'
+        container.innerHTML = html
     } catch (err) {
-        container.innerHTML = `<p style="color:#ef4444">❌ Error: ${err.message}</p>`
+        container.innerHTML = '<p style="color:#ef4444">Error: ' + err.message + '</p>'
     }
 }
 
@@ -100,39 +94,30 @@ async function requestPairingCode() {
     const countryCode = document.getElementById('wa-country').value
     const phoneNumber = document.getElementById('wa-phone').value.trim()
     const container = document.getElementById('wa-pairing-container')
-
     if (!phoneNumber) {
         container.innerHTML = '<p style="color:#ef4444">Phone number daalo!</p>'
         return
     }
-
-    container.innerHTML = '<p style="color:#94a3b8">⏳ Code generate ho raha hai...</p>'
-
+    container.innerHTML = '<p style="color:#94a3b8">Code generate ho raha hai...</p>'
     try {
         const res = await fetch('/api/whatsapp/pairing-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ countryCode, phoneNumber })
         })
-
         const data = await res.json()
-
         if (data.success && data.code) {
-            container.innerHTML = `
-                <div class="wa-pairing-code">
-                    <p style="color:#6ee7b7; margin:0 0 8px 0;">📱 Pairing Code</p>
-                    <p class="code">${data.code}</p>
-                    <p style="color:#cbd5e1; font-size:12px; margin-top:12px;">
-                        WhatsApp → Settings → Linked Devices →<br>
-                        Link a Device → Link with phone number
-                    </p>
-                </div>
-            `
+            let html = '<div class="wa-pairing-code">'
+            html += '<p style="color:#6ee7b7; margin:0 0 8px 0;">Pairing Code</p>'
+            html += '<p class="code">' + data.code + '</p>'
+            html += '<p style="color:#cbd5e1; font-size:12px; margin-top:12px;">WhatsApp - Settings - Linked Devices - Link a Device - Link with phone number</p>'
+            html += '</div>'
+            container.innerHTML = html
         } else {
-            container.innerHTML = `<p style="color:#ef4444">❌ ${data.error || 'Code generate nahi hua'}</p>`
+            container.innerHTML = '<p style="color:#ef4444">' + (data.error || 'Code generate nahi hua') + '</p>'
         }
     } catch (err) {
-        container.innerHTML = `<p style="color:#ef4444">❌ Error: ${err.message}</p>`
+        container.innerHTML = '<p style="color:#ef4444">Error: ' + err.message + '</p>'
     }
 }
 
@@ -151,16 +136,16 @@ async function loadAIKeys() {
     keys.forEach(k => {
         const div = document.createElement('div')
         div.className = 'item'
-        div.innerHTML = `
-            <div class="item-info">
-                <strong>${k.provider.toUpperCase()} - ${k.label}</strong>
-                <small>${k.key.substring(0, 12)}...${k.key.slice(-4)} | Uses: ${k.usageCount || 0} | ${k.active ? '✅ Active' : '❌ Disabled'}</small>
-            </div>
-            <div class="item-actions">
-                <button class="btn btn-sm" onclick="toggleAIKey('${k.id}', ${k.active})">${k.active ? 'Disable' : 'Enable'}</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteAIKey('${k.id}')">Delete</button>
-            </div>
-        `
+        let preview = k.key.substring(0, 12) + '...' + k.key.slice(-4)
+        let status = k.active ? 'Active' : 'Disabled'
+        div.innerHTML = '<div class="item-info">' +
+            '<strong>' + k.provider.toUpperCase() + ' - ' + k.label + '</strong>' +
+            '<small>' + preview + ' | Uses: ' + (k.usageCount || 0) + ' | ' + status + '</small>' +
+            '</div>' +
+            '<div class="item-actions">' +
+            '<button class="btn btn-sm" onclick="toggleAIKey(\'' + k.id + '\', ' + k.active + ')">' + (k.active ? 'Disable' : 'Enable') + '</button>' +
+            '<button class="btn btn-sm btn-danger" onclick="deleteAIKey(\'' + k.id + '\')">Delete</button>' +
+            '</div>'
         list.appendChild(div)
     })
 }
@@ -183,7 +168,7 @@ async function addAIKey() {
 }
 
 async function toggleAIKey(id, currentActive) {
-    await fetch(`/api/ai-keys/${id}`, {
+    await fetch('/api/ai-keys/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: !currentActive })
@@ -193,7 +178,7 @@ async function toggleAIKey(id, currentActive) {
 
 async function deleteAIKey(id) {
     if (!confirm('Delete karna hai?')) return
-    await fetch(`/api/ai-keys/${id}`, { method: 'DELETE' })
+    await fetch('/api/ai-keys/' + id, { method: 'DELETE' })
     loadAIKeys()
 }
 
@@ -206,16 +191,16 @@ async function loadImgBBKeys() {
     keys.forEach(k => {
         const div = document.createElement('div')
         div.className = 'item'
-        div.innerHTML = `
-            <div class="item-info">
-                <strong>${k.label}</strong>
-                <small>${k.key.substring(0, 8)}... | Uses: ${k.usageCount || 0} | ${k.active ? '✅' : '❌'}</small>
-            </div>
-            <div class="item-actions">
-                <button class="btn btn-sm" onclick="toggleImgBBKey('${k.id}', ${k.active})">${k.active ? 'Disable' : 'Enable'}</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteImgBBKey('${k.id}')">Delete</button>
-            </div>
-        `
+        let preview = k.key.substring(0, 8) + '...'
+        let status = k.active ? 'Active' : 'Disabled'
+        div.innerHTML = '<div class="item-info">' +
+            '<strong>' + k.label + '</strong>' +
+            '<small>' + preview + ' | Uses: ' + (k.usageCount || 0) + ' | ' + status + '</small>' +
+            '</div>' +
+            '<div class="item-actions">' +
+            '<button class="btn btn-sm" onclick="toggleImgBBKey(\'' + k.id + '\', ' + k.active + ')">' + (k.active ? 'Disable' : 'Enable') + '</button>' +
+            '<button class="btn btn-sm btn-danger" onclick="deleteImgBBKey(\'' + k.id + '\')">Delete</button>' +
+            '</div>'
         list.appendChild(div)
     })
 }
@@ -235,7 +220,7 @@ async function addImgBBKey() {
 }
 
 async function toggleImgBBKey(id, currentActive) {
-    await fetch(`/api/imgbb-keys/${id}`, {
+    await fetch('/api/imgbb-keys/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: !currentActive })
@@ -245,7 +230,7 @@ async function toggleImgBBKey(id, currentActive) {
 
 async function deleteImgBBKey(id) {
     if (!confirm('Delete?')) return
-    await fetch(`/api/imgbb-keys/${id}`, { method: 'DELETE' })
+    await fetch('/api/imgbb-keys/' + id, { method: 'DELETE' })
     loadImgBBKeys()
 }
 
@@ -258,13 +243,11 @@ async function loadInstructions() {
     list.forEach(i => {
         const div = document.createElement('div')
         div.className = 'item'
-        div.innerHTML = `
-            <div class="item-info"><strong>${i.text}</strong></div>
-            <div class="item-actions">
-                <button class="btn btn-sm" onclick="editInstruction('${i.id}', '${i.text.replace(/'/g, "\\'")}')">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteInstruction('${i.id}')">Delete</button>
-            </div>
-        `
+        div.innerHTML = '<div class="item-info"><strong>' + i.text + '</strong></div>' +
+            '<div class="item-actions">' +
+            '<button class="btn btn-sm" onclick="editInstruction(\'' + i.id + '\')">Edit</button>' +
+            '<button class="btn btn-sm btn-danger" onclick="deleteInstruction(\'' + i.id + '\')">Delete</button>' +
+            '</div>'
         el.appendChild(div)
     })
 }
@@ -281,10 +264,10 @@ async function addInstruction() {
     loadInstructions()
 }
 
-async function editInstruction(id, oldText) {
-    const text = prompt('Edit instruction:', oldText)
+async function editInstruction(id) {
+    const text = prompt('Edit instruction:')
     if (!text) return
-    await fetch(`/api/instructions/${id}`, {
+    await fetch('/api/instructions/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text })
@@ -294,7 +277,7 @@ async function editInstruction(id, oldText) {
 
 async function deleteInstruction(id) {
     if (!confirm('Delete?')) return
-    await fetch(`/api/instructions/${id}`, { method: 'DELETE' })
+    await fetch('/api/instructions/' + id, { method: 'DELETE' })
     loadInstructions()
 }
 
@@ -302,7 +285,8 @@ async function deleteInstruction(id) {
 async function loadKnowledge() {
     const res = await fetch('/api/knowledge')
     const k = await res.json()
-    ;['assistantName','sirName','sirIntro','youtube','telegram','website','app','busyMessage','note'].forEach(f => {
+    const fields = ['assistantName','sirName','sirIntro','youtube','telegram','website','app','busyMessage','note']
+    fields.forEach(f => {
         const el = document.getElementById('k-' + f)
         if (el) el.value = k[f] || ''
     })
@@ -310,7 +294,8 @@ async function loadKnowledge() {
 
 async function saveKnowledge() {
     const data = {}
-    ;['assistantName','sirName','sirIntro','youtube','telegram','website','app','busyMessage','note'].forEach(f => {
+    const fields = ['assistantName','sirName','sirIntro','youtube','telegram','website','app','busyMessage','note']
+    fields.forEach(f => {
         const el = document.getElementById('k-' + f)
         if (el) data[f] = el.value
     })
@@ -331,31 +316,34 @@ async function loadUsers() {
     users.forEach(u => {
         const div = document.createElement('div')
         div.className = 'item'
-        div.innerHTML = `
-            <div class="item-info">
-                <strong>${u.name || 'Unknown'}</strong>
-                <small>${u.id.split('@')[0]}</small>
-            </div>
-            <div class="item-actions">
-                <button class="btn btn-sm" onclick="loadMessages('${u.id}')">View</button>
-            </div>
-        `
+        div.innerHTML = '<div class="item-info">' +
+            '<strong>' + (u.name || 'Unknown') + '</strong>' +
+            '<small>' + u.id.split('@')[0] + '</small>' +
+            '</div>' +
+            '<div class="item-actions">' +
+            '<button class="btn btn-sm" onclick="loadMessages(\'' + u.id + '\')">View</button>' +
+            '</div>'
         el.appendChild(div)
     })
 }
 
 async function loadMessages(userId) {
-    const res = await fetch(`/api/users/${encodeURIComponent(userId)}/messages`)
+    const res = await fetch('/api/users/' + encodeURIComponent(userId) + '/messages')
     const msgs = await res.json()
     const el = document.getElementById('user-messages')
     el.innerHTML = ''
     msgs.forEach(m => {
         const div = document.createElement('div')
-        div.className = `msg ${m.sender === 'bot' ? 'bot' : 'user'} ${m.deleted ? 'deleted' : ''}`
-        let content = m.content || `[${m.type}]`
-        if (m.mediaUrl) content += ` <a href="${m.mediaUrl}" target="_blank">🔗 media</a>`
-        if (m.deleted) content += ' 🗑️'
-        div.innerHTML = `${content}<small>${new Date(m.timestamp).toLocaleString()} ${m.sender === 'bot' ? '(bot)' : '(user)'}</small>`
+        let cls = 'msg '
+        cls += (m.sender === 'bot') ? 'bot' : 'user'
+        if (m.deleted) cls += ' deleted'
+        div.className = cls
+        let content = m.content || '[' + m.type + ']'
+        if (m.mediaUrl) content += ' <a href="' + m.mediaUrl + '" target="_blank">media</a>'
+        if (m.deleted) content += ' [deleted]'
+        let time = new Date(m.timestamp).toLocaleString()
+        let sender = (m.sender === 'bot') ? '(bot)' : '(user)'
+        div.innerHTML = content + '<small>' + time + ' ' + sender + '</small>'
         el.appendChild(div)
     })
 }
