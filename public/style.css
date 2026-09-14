@@ -58,3 +58,55 @@ header h1 { color: #38bdf8; }
 .msg.bot { background: #065f46; }
 .msg.deleted { opacity: 0.5; border: 1px dashed #ef4444; }
 .msg small { display: block; color: #94a3b8; font-size: 11px; margin-top: 4px; }
+
+/* WhatsApp Connect */
+.wa-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.wa-option {
+    background: #0f172a;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+}
+
+.wa-option h3 {
+    color: #38bdf8;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.wa-option p {
+    color: #94a3b8;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.wa-qr-box {
+    background: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.wa-pairing-code {
+    background: #065f46;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.wa-pairing-code .code {
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    letter-spacing: 6px;
+    font-family: monospace;
+}
+
+@media (max-width: 768px) {
+    .wa-options { grid-template-columns: 1fr; }
+}
