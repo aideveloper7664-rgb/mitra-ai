@@ -67,8 +67,29 @@ app.post('/api/bot/toggle', auth, async (req, res) => {
     res.json({ botEnabled: settings.botEnabled })
 })
 
-// ========== API: WHATSAPP CONNECT ==========
-app.post('/api/whatsapp/connect', auth, async (req, res) => {
+// ========== API: WHATSAPP ==========
+app.get('/api/whatsapp/status', auth, (req, res) => {
+    const state = global.WA_STATE || {}
+    res.json({
+        connected: state.connected || false,
+        hasQR: !!state.qr,
+        hasPairingCode: !!state.pairingCode,
+        phoneNumber: state.phoneNumber || null
+    })
+})
+
+app.get('/api/whatsapp/qr', auth, (req, res) => {
+    const state = global.WA_STATE || {}
+    if (state.connected) {
+        return res.json({ connected: true })
+    }
+    if (!state.qr) {
+        return res.json({ qr: null, message: 'QR abhi ready nahi hai. 5 second baad try karo.' })
+    }
+    res.json({ qr: state.qr })
+})
+
+app.post('/api/whatsapp/pairing-code', auth, async (req, res) => {
     const { countryCode, phoneNumber } = req.body
 
     if (!countryCode || !phoneNumber) {
@@ -82,7 +103,7 @@ app.post('/api/whatsapp/connect', auth, async (req, res) => {
     }
 
     if (!global.requestPairingCode) {
-        return res.status(503).json({ error: 'WhatsApp bot abhi ready nahi hai. 10 second baad try karo.' })
+        return res.status(503).json({ error: 'Bot abhi ready nahi hai. 10 second baad try karo.' })
     }
 
     try {
@@ -90,8 +111,22 @@ app.post('/api/whatsapp/connect', auth, async (req, res) => {
         res.json({
             success: true,
             code: code,
-            message: 'Pairing code generate ho gaya. Phone me daalo.'
+            message: 'Pairing code generate ho gaya'
         })
+    } catch (err) {
+        res.status(500).json({ error: err.message })
+    }
+})
+
+app.post('/api/whatsapp/disconnect', auth, async (req, res) => {
+    try {
+        if (global.WA_STATE?.sock) {
+            await global.WA_STATE.sock.logout()
+            global.WA_STATE.connected = false
+            global.WA_STATE.qr = null
+            global.WA_STATE.pairingCode = null
+        }
+        res.json({ success: true })
     } catch (err) {
         res.status(500).json({ error: err.message })
     }
