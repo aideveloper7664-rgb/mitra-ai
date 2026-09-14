@@ -36,6 +36,49 @@ document.getElementById('toggle-bot')?.addEventListener('click', async () => {
     loadStatus()
 })
 
+// ========== WHATSAPP CONNECT ==========
+async function connectWhatsApp() {
+    const countryCode = document.getElementById('wa-country').value
+    const phoneNumber = document.getElementById('wa-phone').value.trim()
+    const statusDiv = document.getElementById('wa-status')
+
+    if (!phoneNumber) {
+        statusDiv.innerHTML = '<p style="color:#ef4444">Phone number daalo!</p>'
+        return
+    }
+
+    statusDiv.innerHTML = '<p style="color:#94a3b8">⏳ Connecting... (10-15 second lag sakte hain)</p>'
+
+    try {
+        const res = await fetch('/api/whatsapp/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ countryCode, phoneNumber })
+        })
+
+        const data = await res.json()
+
+        if (data.success && data.code) {
+            statusDiv.innerHTML = `
+                <div style="background:#065f46; padding:20px; border-radius:8px; margin-top:16px;">
+                    <h3 style="color:#6ee7b7; margin:0 0 12px 0;">📱 Pairing Code</h3>
+                    <p style="font-size:36px; font-weight:bold; color:#fff; letter-spacing:6px; margin:12px 0; font-family:monospace;">${data.code}</p>
+                    <p style="color:#cbd5e1; font-size:14px; margin-top:12px;">
+                        1. WhatsApp kholo<br>
+                        2. Settings → Linked Devices<br>
+                        3. Link a Device → Link with phone number<br>
+                        4. Ye code daalo
+                    </p>
+                </div>
+            `
+        } else {
+            statusDiv.innerHTML = `<p style="color:#ef4444">❌ ${data.error || 'Connect nahi ho pa raha'}</p>`
+        }
+    } catch (err) {
+        statusDiv.innerHTML = `<p style="color:#ef4444">❌ Error: ${err.message}</p>`
+    }
+}
+
 // ========== AI KEYS ==========
 async function loadAIKeys() {
     const res = await fetch('/api/ai-keys')
