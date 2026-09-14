@@ -45,8 +45,8 @@ Rules:
 
 function getDefaultModel(provider) {
     return {
-        gemini: 'gemini-2.0-flash',
-        groq: 'llama-3.3-70b-versatile',
+        gemini: 'gemini-1.5-flash',
+        groq: 'llama-3.1-8b-instant',     // Groq ka naya model
         openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
         openai: 'gpt-4o-mini',
         mistral: 'mistral-small-latest'
@@ -93,10 +93,16 @@ async function callProvider(key, messages, systemPrompt) {
 
 export async function getAIReply(userId, userMessage, history = []) {
     const keys = await getAIKeys()
-    if (!keys.length) return 'Bhai abhi AI service available nahi hai.'
+    if (!keys.length) {
+        console.log('❌ Koi AI key nahi hai')
+        return 'Bhai abhi AI service available nahi hai. Thodi der baad try karo.'
+    }
 
     const available = keys.filter(k => k.active !== false && !isOnCooldown(k.id))
-    if (!available.length) return 'Bhai abhi saari AI keys busy hain. 1 min baad try karo.'
+    if (!available.length) {
+        console.log('❌ Saari AI keys cooldown me hain')
+        return 'Bhai abhi saari AI keys busy hain. 1 min baad try karo.'
+    }
 
     available.sort((a, b) => (a.usageCount || 0) - (b.usageCount || 0))
 
@@ -105,25 +111,36 @@ export async function getAIReply(userId, userMessage, history = []) {
 
     for (const key of available) {
         try {
+            console.log(`🔄 Trying ${key.provider}/${key.label}...`)
             const reply = await callProvider(key, messages, systemPrompt)
-            if (reply) {
+            
+            if (reply && reply.trim()) {
                 key.usageCount = (key.usageCount || 0) + 1
                 key.lastUsed = Date.now()
                 await saveAIKeys(keys)
                 console.log(`✅ Reply via ${key.provider}/${key.label}`)
                 return reply.trim()
+            } else {
+                console.log(`⚠️ ${key.provider}/${key.label} empty reply`)
             }
         } catch (err) {
             const status = err.response?.status
             const errMsg = err.response?.data?.error?.message || err.message
             console.log(`❌ ${key.provider}/${key.label} [${status}]:`, errMsg)
-            if (status === 429 || errMsg?.includes('quota') || errMsg?.includes('rate')) {
-                setCooldown(key.id, 60 * 60 * 1000)
+            
+            // Rate limit ya quota exceeded → cooldown
+            if (status === 429 || errMsg?.includes('quota') || errMsg?.includes('rate') || errMsg?.includes('limit')) {
+                setCooldown(key.id, 60 * 60 * 1000) // 1 ghanta
+                console.log(`   ⏳ ${key.label} cooldown me 1 ghante ke liye`)
             } else if (status === 401 || status === 403) {
                 key.active = false
                 await saveAIKeys(keys)
+                console.log(`   🚫 ${key.label} disable ho gayi`)
             }
+            // Next key try karega
         }
     }
-    return 'Bhai abhi AI reply nahi de pa raha.'
+
+    console.log('❌ Saari keys fail ho gayi')
+    return 'Bhai abhi AI reply nahi de pa raha. Thodi der baad try karo.'
 }
