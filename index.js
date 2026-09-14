@@ -89,35 +89,34 @@ async function startBot() {
         browser: ['Chrome', 'Chrome', '20.0.04']
     })
 
+    // ========== GLOBAL PAIRING CODE FUNCTION (Panel Se Call Hoga) ==========
+    global.requestPairingCode = async (phoneNumber) => {
+        if (!sock) throw new Error('Socket ready nahi hai')
+        if (sock.authState.creds.registered) throw new Error('Already connected')
+        const code = await sock.requestPairingCode(phoneNumber)
+        return code
+    }
+
+    // Agar PHONE_NUMBER env me hai toh auto pairing code
     let pairingRequested = false
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
 
+        // Auto pairing code (agar PHONE_NUMBER set hai)
         if (qr && !pairingRequested && !sock.authState.creds.registered) {
-            pairingRequested = true
             const phoneNumber = process.env.PHONE_NUMBER
-
-            if (!phoneNumber) {
-                console.log('\n❌ PHONE_NUMBER env variable set nahi hai!')
-                qrcode.generate(qr, { small: true })
-                return
+            if (phoneNumber) {
+                pairingRequested = true
+                setTimeout(async () => {
+                    try {
+                        const code = await sock.requestPairingCode(phoneNumber)
+                        console.log(`\n📱 Auto pairing code: ${code}\n`)
+                    } catch (err) {
+                        console.log('❌ Auto pairing error:', err.message)
+                    }
+                }, 3000)
             }
-
-            setTimeout(async () => {
-                try {
-                    const code = await sock.requestPairingCode(phoneNumber)
-                    console.log(`\n========================================`)
-                    console.log(`📱 PAIRING CODE: ${code}`)
-                    console.log(`========================================`)
-                    console.log(`\n📍 Phone me daalo:`)
-                    console.log(`   WhatsApp > Settings > Linked Devices`)
-                    console.log(`   > Link a Device > Link with phone number\n`)
-                } catch (err) {
-                    console.log('❌ Pairing code error:', err.message)
-                    qrcode.generate(qr, { small: true })
-                }
-            }, 3000)
         }
 
         if (connection === 'open') {
@@ -140,6 +139,7 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds)
 
+    // ========== MESSAGE HANDLER ==========
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify') return
         const msg = messages[0]
@@ -178,8 +178,14 @@ async function startBot() {
 
         if (!botEnabled) return
 
+        // AI reply — try/catch ke saath
         const history = await getChatHistory(userId, 20)
-        const reply = await getAIReply(userId, processed.content || '[media]', history)
+        let reply = 'Bhai abhi AI reply nahi de pa raha.'
+        try {
+            reply = await getAIReply(userId, processed.content || '[media]', history)
+        } catch (err) {
+            console.log('❌ AI call error:', err.message)
+        }
 
         try { await sock.sendPresenceUpdate('composing', userId) } catch {}
         await new Promise(r => setTimeout(r, humanDelay()))
@@ -200,6 +206,7 @@ async function startBot() {
         } catch (err) { console.log('❌ Send:', err.message) }
     })
 
+    // ========== DELETED MESSAGE HANDLER ==========
     sock.ev.on('messages.update', async (updates) => {
         for (const u of updates) {
             if (u.update?.messageStubType === 0 || u.update?.message === null) {
