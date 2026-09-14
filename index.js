@@ -3,12 +3,11 @@ import makeWASocket, {
     fetchLatestBaileysVersion, downloadMediaMessage
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
-import qrcode from 'qrcode-terminal'
 import pino from 'pino'
 import dotenv from 'dotenv'
 dotenv.config()
 
-// Panel (web server) import karo — Render ko port chahiye
+// Panel (web server) import karo
 import './panel.js'
 
 import { getAIReply } from './ai.js'
@@ -22,7 +21,16 @@ const logger = pino({ level: 'silent' })
 let sock = null
 let botEnabled = true
 
-// Settings refresh (har 30 sec)
+// Global state — panel isse access karega
+global.WA_STATE = {
+    sock: null,
+    qr: null,
+    pairingCode: null,
+    connected: false,
+    phoneNumber: null
+}
+
+// Settings refresh
 setInterval(async () => {
     try {
         const s = await getSettings()
@@ -30,12 +38,10 @@ setInterval(async () => {
     } catch (e) {}
 }, 30000)
 
-// Human delay (2-8 sec)
 function humanDelay() {
     return 2000 + Math.floor(Math.random() * 6000)
 }
 
-// Message type detect + media handle
 async function processMessage(msg) {
     const m = msg.message
     if (!m) return null
@@ -89,50 +95,32 @@ async function startBot() {
         browser: ['Chrome', 'Chrome', '20.0.04']
     })
 
-    // ========== GLOBAL PAIRING CODE FUNCTION (Panel Se Call Hoga) ==========
-    global.requestPairingCode = async (phoneNumber) => {
-        if (!sock) throw new Error('Socket ready nahi hai')
-        if (sock.authState.creds.registered) throw new Error('Already connected')
-        const code = await sock.requestPairingCode(phoneNumber)
-        return code
-    }
+    global.WA_STATE.sock = sock
 
-    // Agar PHONE_NUMBER env me hai toh auto pairing code
-    let pairingRequested = false
-
+    // ========== QR + CONNECTION HANDLER ==========
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update
 
-        // Auto pairing code (agar PHONE_NUMBER set hai)
-        if (qr && !pairingRequested && !sock.authState.creds.registered) {
-            const phoneNumber = process.env.PHONE_NUMBER
-            if (phoneNumber) {
-                pairingRequested = true
-                setTimeout(async () => {
-                    try {
-                        const code = await sock.requestPairingCode(phoneNumber)
-                        console.log(`\n📱 Auto pairing code: ${code}\n`)
-                    } catch (err) {
-                        console.log('❌ Auto pairing error:', err.message)
-                    }
-                }, 3000)
-            }
+        if (qr) {
+            global.WA_STATE.qr = qr
+            global.WA_STATE.connected = false
         }
 
         if (connection === 'open') {
-            console.log('\n✅ Mitra AI connected successfully!')
-            console.log('📩 Ab messages ka reply aayega...\n')
+            global.WA_STATE.connected = true
+            global.WA_STATE.qr = null
+            global.WA_STATE.pairingCode = null
+            console.log('✅ WhatsApp connected')
         }
 
         if (connection === 'close') {
+            global.WA_STATE.connected = false
             const code = new Boom(lastDisconnect?.error)?.output?.statusCode
-            console.log('❌ Disconnected. Code:', code)
             if (code !== DisconnectReason.loggedOut) {
                 console.log('🔄 Reconnecting...')
-                pairingRequested = false
                 startBot()
             } else {
-                console.log('🚪 Logged out. auth_info delete karke dobara chalao.')
+                console.log('🚪 Logged out')
             }
         }
     })
@@ -178,7 +166,6 @@ async function startBot() {
 
         if (!botEnabled) return
 
-        // AI reply — try/catch ke saath
         const history = await getChatHistory(userId, 20)
         let reply = 'Bhai abhi AI reply nahi de pa raha.'
         try {
@@ -213,11 +200,20 @@ async function startBot() {
                 const original = await findMessageByWhatsappId(u.key.id)
                 if (original) {
                     await markMessageDeleted(original.userId, original.messageId)
-                    console.log(`🗑️ Deleted message marked: ${u.key.id}`)
                 }
             }
         }
     })
 }
 
-startBot().catch(err => console.error('❌ Bot error:', err))
+// ========== GLOBAL PAIRING CODE FUNCTION ==========
+global.requestPairingCode = async (phoneNumber) => {
+    if (!global.WA_STATE.sock) throw new Error('Socket ready nahi hai')
+    if (global.WA_STATE.connected) throw new Error('Already connected')
+    const code = await global.WA_STATE.sock.requestPairingCode(phoneNumber)
+    global.WA_STATE.pairingCode = code
+    global.WA_STATE.phoneNumber = phoneNumber
+    return code
+}
+
+startBot().catch(err => console.error('❌ Bot error:', err.message))
