@@ -67,6 +67,36 @@ app.post('/api/bot/toggle', auth, async (req, res) => {
     res.json({ botEnabled: settings.botEnabled })
 })
 
+// ========== API: WHATSAPP CONNECT ==========
+app.post('/api/whatsapp/connect', auth, async (req, res) => {
+    const { countryCode, phoneNumber } = req.body
+
+    if (!countryCode || !phoneNumber) {
+        return res.status(400).json({ error: 'Country code aur phone number zaroori hai' })
+    }
+
+    const fullNumber = countryCode.replace(/\D/g, '') + phoneNumber.replace(/\D/g, '')
+
+    if (fullNumber.length < 10 || fullNumber.length > 15) {
+        return res.status(400).json({ error: 'Invalid phone number (10-15 digits)' })
+    }
+
+    if (!global.requestPairingCode) {
+        return res.status(503).json({ error: 'WhatsApp bot abhi ready nahi hai. 10 second baad try karo.' })
+    }
+
+    try {
+        const code = await global.requestPairingCode(fullNumber)
+        res.json({
+            success: true,
+            code: code,
+            message: 'Pairing code generate ho gaya. Phone me daalo.'
+        })
+    } catch (err) {
+        res.status(500).json({ error: err.message })
+    }
+})
+
 // ========== API: AI KEYS ==========
 app.get('/api/ai-keys', auth, async (req, res) => res.json(await getAIKeys()))
 
@@ -94,19 +124,6 @@ app.delete('/api/ai-keys/:id', auth, async (req, res) => {
     const keys = (await getAIKeys()).filter(k => k.id !== req.params.id)
     await saveAIKeys(keys)
     res.json({ success: true })
-})
-
-app.post('/api/ai-keys/:id/test', auth, async (req, res) => {
-    const keys = await getAIKeys()
-    const key = keys.find(k => k.id === req.params.id)
-    if (!key) return res.status(404).json({ error: 'Not found' })
-    try {
-        const { getAIReply } = await import('./ai.js')
-        // Simple test call
-        res.json({ success: true, message: 'Key format valid hai' })
-    } catch (err) {
-        res.json({ success: false, error: err.message })
-    }
 })
 
 // ========== API: IMGBB KEYS ==========
@@ -176,7 +193,7 @@ app.get('/api/users/:id/messages', auth, async (req, res) => {
     res.json(await getUserMessages(req.params.id))
 })
 
-// ========== HEALTH (Render keep-alive) ==========
+// ========== HEALTH ==========
 app.get('/health', (req, res) => res.json({ status: 'ok', time: Date.now() }))
 
 const PORT = process.env.PORT || 3000
