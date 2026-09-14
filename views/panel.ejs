@@ -13,6 +13,7 @@
 
         <nav class="tabs">
             <button class="tab active" data-tab="dashboard">Dashboard</button>
+            <button class="tab" data-tab="whatsapp">WhatsApp</button>
             <button class="tab" data-tab="ai-keys">AI Keys</button>
             <button class="tab" data-tab="imgbb-keys">ImgBB Keys</button>
             <button class="tab" data-tab="instructions">Instructions</button>
@@ -34,6 +35,54 @@
                     <div class="stat"><h3 id="ai-active">0</h3><p>AI Active</p></div>
                     <div class="stat"><h3 id="imgbb-count">0</h3><p>ImgBB Keys</p></div>
                     <div class="stat"><h3 id="imgbb-active">0</h3><p>ImgBB Active</p></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WhatsApp Connect -->
+        <section id="whatsapp" class="tab-content">
+            <div class="card">
+                <h2>WhatsApp Connect</h2>
+
+                <div id="wa-connected" style="display:none;">
+                    <div style="background:#065f46; padding:16px; border-radius:8px; margin-bottom:16px;">
+                        <p style="color:#6ee7b7; margin:0;">✅ WhatsApp connected</p>
+                        <p id="wa-connected-number" style="color:#94a3b8; margin:4px 0 0 0; font-size:14px;"></p>
+                    </div>
+                    <button onclick="disconnectWhatsApp()" class="btn btn-danger">Disconnect</button>
+                </div>
+
+                <div id="wa-not-connected">
+                    <p style="color:#94a3b8; margin-bottom:20px;">
+                        WhatsApp connect karne ke liye 2 options hain:
+                    </p>
+
+                    <div class="wa-options">
+                        <!-- Option 1: QR Code -->
+                        <div class="wa-option">
+                            <h3>📷 QR Code Se</h3>
+                            <p>QR scan karo WhatsApp se</p>
+                            <button onclick="showQR()" class="btn">Show QR</button>
+                            <div id="wa-qr-container" style="margin-top:16px;"></div>
+                        </div>
+
+                        <!-- Option 2: Pairing Code -->
+                        <div class="wa-option">
+                            <h3>🔢 Pairing Code Se</h3>
+                            <p>Country code select karo, number daalo</p>
+                            <div class="form-row" style="margin-top:12px;">
+                                <select id="wa-country" style="flex: 0 0 160px;">
+                                    <option value="977">🇳🇵 Nepal (+977)</option>
+                                    <option value="91">🇮🇳 India (+91)</option>
+                                    <option value="92">🇵🇰 Pakistan (+92)</option>
+                                    <option value="880">🇧🇩 Bangladesh (+880)</option>
+                                </select>
+                                <input id="wa-phone" placeholder="Phone number" style="flex: 1;">
+                            </div>
+                            <button onclick="requestPairingCode()" class="btn" style="margin-top:12px;">Get Pairing Code</button>
+                            <div id="wa-pairing-container" style="margin-top:16px;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
